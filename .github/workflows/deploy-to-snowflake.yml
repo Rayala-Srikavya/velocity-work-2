@@ -2,8 +2,8 @@ name: Deploy Snowflake Monitoring
 
 on:
   push:
-    branches: [ main ]  # Adjust if using a different branch
-  workflow_dispatch:     # Allows manual trigger from GitHub UI
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -13,23 +13,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Install SnowSQL
-        run: |
-          sudo apt-get install -y unzip
-          curl -O https://sfc-repo.snowflakecomputing.com/snowsql/bootstrap/1.2/linux_x86_64/snowsql-1.2.21-linux_x86_64.bash
-          bash snowsql-1.2.21-linux_x86_64.bash
+      - name: Run SQL scripts using Snowflake Action
+        uses: snowflakedb/snowflake-action@v1
+        with:
+          account: ${{ secrets.SNOWSQL_ACCOUNT }}
+          username: ${{ secrets.SNOWSQL_USER }}
+          password: ${{ secrets.SNOWSQL_PWD }}
+          region: aws
+          warehouse: COMPUTE_WH
+          database: ${{ secrets.SNOWSQL_DATABASE }}
+          role: ACCOUNTADMIN
+          script: |
+            USE DATABASE ${{ secrets.SNOWSQL_DATABASE }};
+            !source sql/01_create_known_tables.sql;
+            !source sql/02_create_alert_log.sql;
+            !source sql/03_create_procedure.sql;
+            !source sql/04_create_task.sql;
+            ALTER TASK monitoring.detect_new_tables_task RESUME;
 
-      - name: Run SQL scripts in Snowflake
-        env:
-          SNOWSQL_ACCOUNT: ${{ secrets.SNOWSQL_ACCOUNT }}
-          SNOWSQL_USER: ${{ secrets.SNOWSQL_USER }}
-          SNOWSQL_PWD: ${{ secrets.SNOWSQL_PWD }}
-          SNOWSQL_DATABASE: ${{ secrets.SNOWSQL_DATABASE }}
-        run: |
-          ~/bin/snowsql -a $SNOWSQL_ACCOUNT -u $SNOWSQL_USER -d $SNOWSQL_DATABASE \
-            -q "USE ROLE ACCOUNTADMIN;" \
-            -f sql/01_create_known_tables.sql \
-            -f sql/02_create_alert_log.sql \
-            -f sql/03_create_procedure.sql \
-            -f sql/04_create_task.sql \
-            -q "ALTER TASK monitoring.detect_new_tables_task RESUME;"
