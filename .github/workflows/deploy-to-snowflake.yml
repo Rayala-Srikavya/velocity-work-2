@@ -29,5 +29,6 @@ jobs:
             !source sql/02_create_alert_log.sql;
             !source sql/03_create_procedure.sql;
             !source sql/04_create_task.sql;
+            !source sql/05_create_alert.sql;
             ALTER TASK monitoring.detect_new_tables_task RESUME;
-
+            ALTER ALERT monitoring.new_table_alert RESUME;
