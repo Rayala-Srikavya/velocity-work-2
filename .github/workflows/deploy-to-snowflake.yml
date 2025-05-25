@@ -29,13 +29,22 @@ jobs:
           SNOWSQL_PWD: ${{ secrets.SNOWSQL_PWD }}
           SNOWSQL_DATABASE: ${{ secrets.SNOWSQL_DATABASE }}
         run: |
-          ~/snowflake/snowsql -a $SNOWSQL_ACCOUNT -u $SNOWSQL_USER -p $SNOWSQL_PWD -d $SNOWSQL_DATABASE -w COMPUTE_WH -q "
-            USE DATABASE $SNOWSQL_DATABASE;
-            !source sql/01_create_known_tables.sql;
-            !source sql/02_create_alert_log.sql;
-            !source sql/03_create_procedure.sql;
-            !source sql/04_create_task.sql;
-            !source sql/05_create_alert.sql;
-            ALTER TASK monitoring.detect_new_tables_task RESUME;
-            ALTER ALERT monitoring.new_table_alert RESUME;
-          "
+          echo "
+          USE DATABASE $SNOWSQL_DATABASE;
+          !source sql/01_create_known_tables.sql;
+          !source sql/02_create_alert_log.sql;
+          !source sql/03_create_procedure.sql;
+          !source sql/04_create_task.sql;
+          !source sql/05_create_alert.sql;
+          ALTER TASK monitoring.detect_new_tables_task RESUME;
+          ALTER ALERT monitoring.new_table_alert RESUME;
+          " > deploy.sql
+
+          ~/snowflake/snowsql \
+            -a $SNOWSQL_ACCOUNT \
+            -u $SNOWSQL_USER \
+            -p $SNOWSQL_PWD \
+            -d $SNOWSQL_DATABASE \
+            -w COMPUTE_WH \
+            -f deploy.sql
+
