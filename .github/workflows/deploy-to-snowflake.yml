@@ -31,6 +31,8 @@ jobs:
           cat <<EOF > deploy.sql
           USE ROLE SYSADMIN;
           USE DATABASE ${SNOWSQL_DATABASE};
+          USE WAREHOUSE COMPUTE_WH;
+
           !source sql/01_create_known_tables.sql;
           !source sql/02_create_alert_log.sql;
           !source sql/03_create_procedure.sql;
