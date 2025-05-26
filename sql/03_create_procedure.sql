@@ -59,13 +59,16 @@ BEGIN
             INTO new_table_details
             FROM (
                 SELECT LISTAGG('- ' || t.table_name || ' (Detected: ' || TO_CHAR(CURRENT_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS') || ')', '\n') AS details
-                FROM information_schema.tables t
-                LEFT JOIN monitoring.known_tables k
-                  ON LOWER(t.table_schema) = LOWER(k.table_schema)
-                 AND LOWER(t.table_name) = LOWER(k.table_name)
-                WHERE t.table_catalog = CURRENT_DATABASE()
-                  AND t.table_schema = schema_row.schema_name
-                  AND k.table_name IS NULL
+                FROM (
+                    SELECT t.table_name
+                    FROM information_schema.tables t
+                    LEFT JOIN monitoring.known_tables k
+                      ON LOWER(t.table_schema) = LOWER(k.table_schema)
+                     AND LOWER(t.table_name) = LOWER(k.table_name)
+                    WHERE t.table_catalog = CURRENT_DATABASE()
+                      AND t.table_schema = schema_row.schema_name
+                      AND k.table_name IS NULL
+                )
             ) AS aggregated;
 
             -- Log the alert message
