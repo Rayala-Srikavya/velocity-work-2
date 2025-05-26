@@ -33,34 +33,40 @@ BEGIN
 
         -- If new tables exist, insert them and log alert
         IF (current_count > known_count) THEN
-            -- Capture new tables before inserting
-            CREATE OR REPLACE TEMP TABLE monitoring._new_tables AS
-            SELECT t.table_schema, t.table_name, CURRENT_TIMESTAMP AS created_at
+            -- Insert new tables into known_tables
+            INSERT INTO monitoring.known_tables (table_schema, table_name, created_at)
+            SELECT t.table_schema, t.table_name, CURRENT_TIMESTAMP
             FROM information_schema.tables t
             LEFT JOIN monitoring.known_tables k
-              ON t.table_schema = k.table_schema AND t.table_name = k.table_name
+              ON LOWER(t.table_schema) = LOWER(k.table_schema)
+             AND LOWER(t.table_name) = LOWER(k.table_name)
             WHERE t.table_catalog = CURRENT_DATABASE()
               AND t.table_schema = schema_row.schema_name
               AND k.table_name IS NULL;
 
             -- Count new tables
-            SELECT COUNT(*) INTO new_table_count FROM monitoring._new_tables;
+            SELECT COUNT(*) INTO new_table_count
+            FROM information_schema.tables t
+            LEFT JOIN monitoring.known_tables k
+              ON LOWER(t.table_schema) = LOWER(k.table_schema)
+             AND LOWER(t.table_name) = LOWER(k.table_name)
+            WHERE t.table_catalog = CURRENT_DATABASE()
+              AND t.table_schema = schema_row.schema_name
+              AND k.table_name IS NULL;
 
-            -- Insert new tables into known_tables
-            INSERT INTO monitoring.known_tables (table_schema, table_name, created_at)
-            SELECT * FROM monitoring._new_tables;
-
-            -- Log insert success
-            INSERT INTO monitoring.alert_log (event_time, message)
-            VALUES (CURRENT_TIMESTAMP, 'Inserted ' || new_table_count || ' new tables into known_tables for schema: ' || schema_row.schema_name);
-
-            -- Aggregate new table details for alert message
-            SELECT COALESCE(
-                LISTAGG('- ' || table_name || ' (Detected: ' || TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') || ')', '\n'),
-                'No new tables detected.'
-            )
+            -- Aggregate new table details
+            SELECT COALESCE(details, 'No new tables detected.')
             INTO new_table_details
-            FROM monitoring._new_tables;
+            FROM (
+                SELECT LISTAGG('- ' || t.table_name || ' (Detected: ' || TO_CHAR(CURRENT_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS') || ')', '\n') AS details
+                FROM information_schema.tables t
+                LEFT JOIN monitoring.known_tables k
+                  ON LOWER(t.table_schema) = LOWER(k.table_schema)
+                 AND LOWER(t.table_name) = LOWER(k.table_name)
+                WHERE t.table_catalog = CURRENT_DATABASE()
+                  AND t.table_schema = schema_row.schema_name
+                  AND k.table_name IS NULL
+            ) AS aggregated;
 
             -- Log the alert message
             INSERT INTO monitoring.alert_log (event_time, message)
