@@ -5,3 +5,4 @@ CREATE TABLE IF NOT EXISTS monitoring.known_tables (
     table_name STRING,
     created_at TIMESTAMP
 );
+
