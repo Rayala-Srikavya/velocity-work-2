@@ -20,7 +20,7 @@ BEGIN
         SELECT COUNT(*) INTO known_count
         FROM monitoring.known_tables
         WHERE table_schema = schema_row.schema_name;
-        IF current_count > known_count THEN
+        IF (current_count > known_count) THEN
             INSERT INTO monitoring.known_tables (table_schema, table_name, created_at)
             SELECT t.table_schema, t.table_name, t.created
             FROM information_schema.tables t
