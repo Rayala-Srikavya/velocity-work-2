@@ -7,6 +7,7 @@ DECLARE
     current_count INTEGER;
     known_count INTEGER;
     new_table_details STRING;
+    new_table_count INTEGER;
 BEGIN
     FOR schema_row IN (
         SELECT schema_name
@@ -15,6 +16,10 @@ BEGIN
           AND schema_name NOT IN ('INFORMATION_SCHEMA', 'MONITORING')
     )
     DO
+        -- Log schema being scanned
+        INSERT INTO monitoring.alert_log (event_time, message)
+        VALUES (CURRENT_TIMESTAMP, 'Scanning schema: ' || schema_row.schema_name);
+
         -- Count current tables in the schema
         SELECT COUNT(*) INTO current_count
         FROM information_schema.tables
@@ -38,6 +43,9 @@ BEGIN
               AND t.table_schema = schema_row.schema_name
               AND k.table_name IS NULL;
 
+            -- Count new tables
+            SELECT COUNT(*) INTO new_table_count FROM monitoring._new_tables;
+
             -- Insert new tables into known_tables
             INSERT INTO monitoring.known_tables (table_schema, table_name, created_at)
             SELECT * FROM monitoring._new_tables;
@@ -50,11 +58,11 @@ BEGIN
             INTO new_table_details
             FROM monitoring._new_tables;
 
-            -- Insert alert log entry
+            -- Log the alert message
             INSERT INTO monitoring.alert_log (event_time, message)
             VALUES (
                 CURRENT_TIMESTAMP,
-                'New tables detected in schema: ' || schema_row.schema_name || ':\n' || new_table_details
+                'New tables detected in schema: ' || schema_row.schema_name || ' (' || new_table_count || '):\n' || new_table_details
             );
         END IF;
     END FOR;
@@ -62,4 +70,3 @@ BEGIN
     RETURN 'Schema scan completed for database: ' || CURRENT_DATABASE();
 END;
 $$;
-
