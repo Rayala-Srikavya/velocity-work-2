@@ -28,9 +28,9 @@ BEGIN
 
         -- If new tables exist, insert them and log alert
         IF (current_count > known_count) THEN
-            -- Insert new tables into known_tables
-            INSERT INTO monitoring.known_tables (table_schema, table_name, created_at)
-            SELECT t.table_schema, t.table_name, t.created
+            -- Capture new tables before inserting
+            CREATE OR REPLACE TEMP TABLE monitoring._new_tables AS
+            SELECT t.table_schema, t.table_name, CURRENT_TIMESTAMP AS created_at
             FROM information_schema.tables t
             LEFT JOIN monitoring.known_tables k
               ON t.table_schema = k.table_schema AND t.table_name = k.table_name
@@ -38,21 +38,17 @@ BEGIN
               AND t.table_schema = schema_row.schema_name
               AND k.table_name IS NULL;
 
+            -- Insert new tables into known_tables
+            INSERT INTO monitoring.known_tables (table_schema, table_name, created_at)
+            SELECT * FROM monitoring._new_tables;
+
             -- Aggregate new table details for alert message
             SELECT COALESCE(
-                LISTAGG('- ' || table_name || ' (Created: ' || TO_CHAR(created, 'YYYY-MM-DD HH24:MI:SS') || ')', '\n'),
+                LISTAGG('- ' || table_name || ' (Detected: ' || TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') || ')', '\n'),
                 'No new tables detected.'
             )
             INTO new_table_details
-            FROM (
-                SELECT t.table_name, t.created
-                FROM information_schema.tables t
-                LEFT JOIN monitoring.known_tables k
-                  ON t.table_schema = k.table_schema AND t.table_name = k.table_name
-                WHERE t.table_catalog = CURRENT_DATABASE()
-                  AND t.table_schema = schema_row.schema_name
-                  AND k.table_name IS NULL
-            );
+            FROM monitoring._new_tables;
 
             -- Insert alert log entry
             INSERT INTO monitoring.alert_log (event_time, message)
@@ -66,3 +62,4 @@ BEGIN
     RETURN 'Schema scan completed for database: ' || CURRENT_DATABASE();
 END;
 $$;
+
