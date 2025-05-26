@@ -50,7 +50,7 @@ BEGIN
             );
             -- Handle case where no new tables found (new_table_details is NULL)
             IF new_table_details IS NULL THEN
-                SET new_table_details = 'No new tables detected.';
+                LET new_table_details = 'No new tables detected.';
             END IF;
             -- Insert alert log entry
             INSERT INTO monitoring.alert_log (event_time, message)
