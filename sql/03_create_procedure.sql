@@ -7,21 +7,18 @@ DECLARE
     current_count INTEGER;
     known_count INTEGER;
     new_table_details STRING;
-    target_database STRING;
 BEGIN
-    target_database := CURRENT_DATABASE();
-
     FOR schema_row IN (
         SELECT schema_name
         FROM information_schema.schemata
-        WHERE catalog_name = target_database
+        WHERE catalog_name = CURRENT_DATABASE()
           AND schema_name NOT IN ('INFORMATION_SCHEMA', 'MONITORING')
     )
     DO
         -- Count current tables in the schema
         SELECT COUNT(*) INTO current_count
         FROM information_schema.tables
-        WHERE table_catalog = target_database
+        WHERE table_catalog = CURRENT_DATABASE()
           AND table_schema = schema_row.schema_name;
 
         -- Count known tables in monitoring.known_tables
@@ -37,7 +34,7 @@ BEGIN
             FROM information_schema.tables t
             LEFT JOIN monitoring.known_tables k
               ON t.table_schema = k.table_schema AND t.table_name = k.table_name
-            WHERE t.table_catalog = target_database
+            WHERE t.table_catalog = CURRENT_DATABASE()
               AND t.table_schema = schema_row.schema_name
               AND k.table_name IS NULL;
 
@@ -52,7 +49,7 @@ BEGIN
                 FROM information_schema.tables t
                 LEFT JOIN monitoring.known_tables k
                   ON t.table_schema = k.table_schema AND t.table_name = k.table_name
-                WHERE t.table_catalog = target_database
+                WHERE t.table_catalog = CURRENT_DATABASE()
                   AND t.table_schema = schema_row.schema_name
                   AND k.table_name IS NULL
             );
@@ -66,6 +63,6 @@ BEGIN
         END IF;
     END FOR;
 
-    RETURN 'Schema scan completed for database: ' || target_database;
+    RETURN 'Schema scan completed for database: ' || CURRENT_DATABASE();
 END;
 $$;
