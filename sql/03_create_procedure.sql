@@ -50,6 +50,10 @@ BEGIN
             INSERT INTO monitoring.known_tables (table_schema, table_name, created_at)
             SELECT * FROM monitoring._new_tables;
 
+            -- Log insert success
+            INSERT INTO monitoring.alert_log (event_time, message)
+            VALUES (CURRENT_TIMESTAMP, 'Inserted ' || new_table_count || ' new tables into known_tables for schema: ' || schema_row.schema_name);
+
             -- Aggregate new table details for alert message
             SELECT COALESCE(
                 LISTAGG('- ' || table_name || ' (Detected: ' || TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') || ')', '\n'),
