@@ -21,10 +21,12 @@ BEGIN
         FROM information_schema.tables
         WHERE table_catalog = target_database
           AND table_schema = schema_row.schema_name;
+
         -- Count known tables in monitoring.known_tables
         SELECT COUNT(*) INTO known_count
         FROM monitoring.known_tables
         WHERE table_schema = schema_row.schema_name;
+
         -- If new tables exist, insert them and log alert
         IF (current_count > known_count) THEN
             -- Insert new tables into known_tables
@@ -36,6 +38,7 @@ BEGIN
             WHERE t.table_catalog = target_database
               AND t.table_schema = schema_row.schema_name
               AND k.table_name IS NULL;
+
             -- Aggregate new table details for alert message
             SELECT MAX(LISTAGG('- ' || table_name || ' (Created: ' || TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') || ')', '\n'))
             INTO new_table_details
@@ -48,10 +51,12 @@ BEGIN
                   AND t.table_schema = schema_row.schema_name
                   AND k.table_name IS NULL
             );
+
             -- Handle case where no new tables found (new_table_details is NULL)
             IF new_table_details IS NULL THEN
-                LET new_table_details = 'No new tables detected.';
+                new_table_details := 'No new tables detected.';
             END IF;
+
             -- Insert alert log entry
             INSERT INTO monitoring.alert_log (event_time, message)
             VALUES (
@@ -60,9 +65,11 @@ BEGIN
             );
         END IF;
     END FOR;
+
     RETURN 'Schema scan completed for database: ' || target_database;
 END;
 $$;
+
 
 
 
