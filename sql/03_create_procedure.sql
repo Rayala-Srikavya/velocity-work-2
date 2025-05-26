@@ -9,7 +9,7 @@ DECLARE
     new_table_details STRING;
     target_database STRING;
 BEGIN
-    LET target_database = CURRENT_DATABASE();
+    target_database := CURRENT_DATABASE();
 
     FOR schema_row IN (
         SELECT schema_name
