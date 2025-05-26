@@ -30,7 +30,7 @@ jobs:
           SNOWSQL_DATABASE: ${{ secrets.SNOWSQL_DATABASE }}
         run: |
           cat <<EOF > deploy.sql
-          USE DATABASE $SNOWSQL_DATABASE;
+          USE DATABASE ${SNOWSQL_DATABASE};
           !source sql/01_create_known_tables.sql;
           !source sql/02_create_alert_log.sql;
           !source sql/03_create_procedure.sql;
@@ -39,11 +39,9 @@ jobs:
           ALTER TASK monitoring.detect_new_tables_task RESUME;
           ALTER ALERT monitoring.new_table_alert RESUME;
           EOF
-
           ~/snowflake/snowsql \
-            -a $SNOWSQL_ACCOUNT \
-            -u $SNOWSQL_USER \
-            -p $SNOWSQL_PWD \
-            -d $SNOWSQL_DATABASE \
+            -a "${SNOWSQL_ACCOUNT}" \
+            -u "${SNOWSQL_USER}" \
+            -d "${SNOWSQL_DATABASE}" \
             -w COMPUTE_WH \
-            -f deploy.sql
+            -f deploy.sql    
