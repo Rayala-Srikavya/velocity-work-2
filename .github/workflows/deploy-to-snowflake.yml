@@ -29,9 +29,9 @@ jobs:
           SNOWSQL_DATABASE: ${{ secrets.SNOWSQL_DATABASE }}
         run: |
           cat <<EOF > deploy.sql
-          USE ROLE SYSADMIN;
-          USE DATABASE ${SNOWSQL_DATABASE};
+          USE ROLE ACCOUNT_ADMIN;
           USE WAREHOUSE COMPUTE_WH;
+          USE DATABASE ${SNOWSQL_DATABASE};
 
           !source sql/01_create_known_tables.sql;
           !source sql/02_create_alert_log.sql;
