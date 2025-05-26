@@ -7,8 +7,10 @@ DECLARE
     current_count INTEGER;
     known_count INTEGER;
     new_table_details STRING;
-    target_database STRING := CURRENT_DATABASE();
+    target_database STRING;
 BEGIN
+    LET target_database = CURRENT_DATABASE();
+
     FOR schema_row IN (
         SELECT schema_name
         FROM information_schema.schemata
@@ -31,7 +33,7 @@ BEGIN
         IF (current_count > known_count) THEN
             -- Insert new tables into known_tables
             INSERT INTO monitoring.known_tables (table_schema, table_name, created_at)
-            SELECT t.table_schema, t.table_name, t.created AS created_at
+            SELECT t.table_schema, t.table_name, t.created
             FROM information_schema.tables t
             LEFT JOIN monitoring.known_tables k
               ON t.table_schema = k.table_schema AND t.table_name = k.table_name
@@ -40,10 +42,13 @@ BEGIN
               AND k.table_name IS NULL;
 
             -- Aggregate new table details for alert message
-            SELECT MAX(LISTAGG('- ' || table_name || ' (Created: ' || TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') || ')', '\n'))
+            SELECT COALESCE(
+              MAX(LISTAGG('- ' || table_name || ' (Created: ' || TO_CHAR(created, 'YYYY-MM-DD HH24:MI:SS') || ')', '\n')),
+              'No new tables detected.'
+            )
             INTO new_table_details
             FROM (
-                SELECT t.table_name, t.created AS created_at
+                SELECT t.table_name, t.created
                 FROM information_schema.tables t
                 LEFT JOIN monitoring.known_tables k
                   ON t.table_schema = k.table_schema AND t.table_name = k.table_name
@@ -51,11 +56,6 @@ BEGIN
                   AND t.table_schema = schema_row.schema_name
                   AND k.table_name IS NULL
             );
-
-            -- Handle case where no new tables found (new_table_details is NULL)
-            IF new_table_details IS NULL THEN
-                new_table_details := 'No new tables detected.';
-            END IF;
 
             -- Insert alert log entry
             INSERT INTO monitoring.alert_log (event_time, message)
@@ -69,10 +69,3 @@ BEGIN
     RETURN 'Schema scan completed for database: ' || target_database;
 END;
 $$;
-
-
-
-
-
-
-
