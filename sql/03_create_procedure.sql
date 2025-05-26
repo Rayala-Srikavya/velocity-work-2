@@ -15,7 +15,7 @@ BEGIN
         WHERE schema_name NOT IN ('INFORMATION_SCHEMA', 'MONITORING')
     )
     DO
-        LET schema_name = schema_row.schema_name;
+        schema_name := schema_row.schema_name;
 
         SELECT COUNT(*) INTO current_count
         FROM information_schema.tables
