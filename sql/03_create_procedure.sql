@@ -55,7 +55,7 @@ BEGIN
                 WHERE t.table_catalog = CURRENT_DATABASE()
                   AND t.table_schema = schema_row.schema_name
                   AND k.table_name IS NULL
-            );
+            ) AS new_tables;
 
             -- Insert alert log entry
             INSERT INTO monitoring.alert_log (event_time, message)
