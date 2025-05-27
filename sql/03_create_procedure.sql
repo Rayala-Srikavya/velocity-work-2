@@ -40,8 +40,9 @@ BEGIN
 
             -- Aggregate new table details for alert message
             SELECT COALESCE(
-                LISTAGG('- ' || table_name || ' (Created: ' || TO_CHAR(created, 'YYYY-MM-DD HH24:MI:SS') || ')', '\n'),
-                'No new tables detected.'
+                LISTAGG('- ' || table_name || ' (Created: ' || TO_CHAR(created, 'YYYY-MM-DD HH24:MI:SS') || ')', '\n') 
+                    WITHIN GROUP (ORDER BY created),
+                        'No new tables detected.'
             )
             INTO new_table_details
             FROM (
