@@ -4,9 +4,9 @@ LANGUAGE SQL
 AS
 $$
 DECLARE
-    new_table_details STRING;
-    return_message STRING;
-    new_table_count INTEGER;
+    new_table_details STRING DEFAULT '';
+    return_message STRING DEFAULT '';
+    new_table_count INTEGER DEFAULT 0;
 BEGIN
     -- Step 1: Create a snapshot of current tables
     CREATE OR REPLACE TEMP TABLE temp_current_tables AS
@@ -24,9 +24,9 @@ BEGIN
     WHERE k.table_name IS NULL;
 
     -- Step 3: Check if there are new tables
-    SELECT COUNT(*) INTO new_table_count FROM temp_new_tables;
+    SELECT COUNT(*) INTO :new_table_count FROM temp_new_tables;
 
-    IF new_table_count > 0 THEN
+    IF (:new_table_count > 0) THEN
         -- Format and log new table details
         SELECT COALESCE(
             TRY(
@@ -37,13 +37,13 @@ BEGIN
             ),
             'New tables detected, but could not format details.'
         )
-        INTO new_table_details
+        INTO :new_table_details
         FROM temp_new_tables;
 
         INSERT INTO monitoring.alert_log (event_time, message)
         VALUES (
             CURRENT_TIMESTAMP,
-            'New tables detected:\n' || new_table_details
+            'New tables detected:\n' || :new_table_details
         );
     END IF;
 
