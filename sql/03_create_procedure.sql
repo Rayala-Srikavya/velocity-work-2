@@ -75,9 +75,9 @@ BEGIN
 
     -- Set return message
     IF is_first_run = 1 THEN
-        LET return_message = 'Initial population of known_tables completed.';
+        SET return_message = 'Initial population of known_tables completed.';
     ELSE
-        LET return_message = 'Schema scan completed for database: ' || CURRENT_DATABASE();
+        SET return_message = 'Schema scan completed for database: ' || CURRENT_DATABASE();
     END IF;
 
     RETURN return_message;
