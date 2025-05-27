@@ -30,18 +30,18 @@ BEGIN
         -- If new tables exist
         IF (current_count > known_count) THEN
             -- Capture new tables before inserting
-            WITH new_tables AS (
-                SELECT t.table_schema, t.table_name, t.created
-                FROM information_schema.tables t
-                LEFT JOIN monitoring.known_tables k
-                  ON t.table_schema = k.table_schema AND t.table_name = k.table_name
-                WHERE t.table_catalog = CURRENT_DATABASE()
-                  AND t.table_schema = schema_row.schema_name
-                  AND k.table_name IS NULL
-            )
+            CREATE TEMP TABLE temp_new_tables AS
+            SELECT t.table_schema, t.table_name, t.created
+            FROM information_schema.tables t
+            LEFT JOIN monitoring.known_tables k
+              ON t.table_schema = k.table_schema AND t.table_name = k.table_name
+            WHERE t.table_catalog = CURRENT_DATABASE()
+              AND t.table_schema = schema_row.schema_name
+              AND k.table_name IS NULL;
+
             -- Insert new tables
             INSERT INTO monitoring.known_tables (table_schema, table_name, created_at)
-            SELECT table_schema, table_name, created FROM new_tables;
+            SELECT table_schema, table_name, created FROM temp_new_tables;
 
             -- Log alert
             SELECT COALESCE(
@@ -54,13 +54,15 @@ BEGIN
                 'New tables detected, but could not format details.'
             )
             INTO new_table_details
-            FROM new_tables;
+            FROM temp_new_tables;
 
             INSERT INTO monitoring.alert_log (event_time, message)
             VALUES (
                 CURRENT_TIMESTAMP,
                 'New tables detected in schema: ' || schema_row.schema_name || ':\n' || new_table_details
             );
+
+            DROP TABLE IF EXISTS temp_new_tables;
         END IF;
     END FOR;
 
@@ -68,5 +70,3 @@ BEGIN
     RETURN return_message;
 END;
 $$;
-
-
