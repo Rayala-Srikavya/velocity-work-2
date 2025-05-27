@@ -4,69 +4,59 @@ LANGUAGE SQL
 AS
 $$
 DECLARE
-    current_count INTEGER;
-    known_count INTEGER;
     new_table_details STRING;
     return_message STRING;
 BEGIN
-    FOR schema_row IN (
-        SELECT schema_name
-        FROM information_schema.schemata
-        WHERE catalog_name = CURRENT_DATABASE()
-          AND schema_name NOT IN ('INFORMATION_SCHEMA', 'MONITORING')
-    )
-    DO
-        -- Count current tables
-        SELECT COUNT(*) INTO current_count
-        FROM information_schema.tables
-        WHERE table_catalog = CURRENT_DATABASE()
-          AND table_schema = schema_row.schema_name;
+    -- Step 1: Create a snapshot of current tables
+    CREATE OR REPLACE TEMP TABLE temp_current_tables AS
+    SELECT table_schema, table_name, created
+    FROM information_schema.tables
+    WHERE table_catalog = CURRENT_DATABASE()
+      AND table_schema NOT IN ('INFORMATION_SCHEMA', 'MONITORING');
 
-        -- Count known tables
-        SELECT COUNT(*) INTO known_count
-        FROM monitoring.known_tables
-        WHERE table_schema = schema_row.schema_name;
+    -- Step 2: Identify new tables (not in known_tables)
+    CREATE OR REPLACE TEMP TABLE temp_new_tables AS
+    SELECT c.table_schema, c.table_name, c.created
+    FROM temp_current_tables c
+    LEFT JOIN monitoring.known_tables k
+      ON c.table_schema = k.table_schema AND c.table_name = k.table_name
+    WHERE k.table_name IS NULL;
 
-        -- If new tables exist
-        IF (current_count > known_count) THEN
-            -- Capture new tables before inserting
-            CREATE TEMP TABLE temp_new_tables AS
-            SELECT t.table_schema, t.table_name, t.created
-            FROM information_schema.tables t
-            LEFT JOIN monitoring.known_tables k
-              ON t.table_schema = k.table_schema AND t.table_name = k.table_name
-            WHERE t.table_catalog = CURRENT_DATABASE()
-              AND t.table_schema = schema_row.schema_name
-              AND k.table_name IS NULL;
+    -- Step 3: Log and alert for new tables
+    IF EXISTS (SELECT 1 FROM temp_new_tables) THEN
+        SELECT COALESCE(
+            TRY(
+                LISTAGG(
+                    '- ' || table_schema || '.' || table_name || ' (Created: ' || TO_CHAR(created, 'YYYY-MM-DD HH24:MI:SS') || ')',
+                    '\n'
+                ) WITHIN GROUP (ORDER BY created)
+            ),
+            'New tables detected, but could not format details.'
+        )
+        INTO new_table_details
+        FROM temp_new_tables;
 
-            -- Insert new tables
-            INSERT INTO monitoring.known_tables (table_schema, table_name, created_at)
-            SELECT table_schema, table_name, created FROM temp_new_tables;
+        INSERT INTO monitoring.alert_log (event_time, message)
+        VALUES (
+            CURRENT_TIMESTAMP,
+            'New tables detected:\n' || new_table_details
+        );
 
-            -- Log alert
-            SELECT COALESCE(
-                TRY(
-                    LISTAGG(
-                        '- ' || table_name || ' (Created: ' || TO_CHAR(created, 'YYYY-MM-DD HH24:MI:SS') || ')',
-                        '\n'
-                    ) WITHIN GROUP (ORDER BY created)
-                ),
-                'New tables detected, but could not format details.'
-            )
-            INTO new_table_details
-            FROM temp_new_tables;
+        -- Optional: Trigger alert email (if using Snowflake alert integration)
+        -- This is handled by your alert definition in sql/05_create_alert.sql
+    END IF;
 
-            INSERT INTO monitoring.alert_log (event_time, message)
-            VALUES (
-                CURRENT_TIMESTAMP,
-                'New tables detected in schema: ' || schema_row.schema_name || ':\n' || new_table_details
-            );
+    -- Step 4: Replace known_tables with current snapshot
+    DELETE FROM monitoring.known_tables;
 
-            DROP TABLE IF EXISTS temp_new_tables;
-        END IF;
-    END FOR;
+    INSERT INTO monitoring.known_tables (table_schema, table_name, created_at)
+    SELECT table_schema, table_name, created FROM temp_current_tables;
 
-    return_message := 'Schema scan completed for database: ' || CURRENT_DATABASE();
+    -- Cleanup
+    DROP TABLE IF EXISTS temp_current_tables;
+    DROP TABLE IF EXISTS temp_new_tables;
+
+    return_message := 'Schema scan completed and known_tables refreshed.';
     RETURN return_message;
 END;
 $$;
