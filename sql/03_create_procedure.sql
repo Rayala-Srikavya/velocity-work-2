@@ -7,10 +7,10 @@ DECLARE
     current_count INTEGER;
     known_count INTEGER;
     new_table_details STRING;
-    is_first_run BOOLEAN;
+    is_first_run INTEGER;
 BEGIN
     -- Check if known_tables is empty
-    SELECT COUNT(*) = 0 INTO is_first_run
+    SELECT CASE WHEN COUNT(*) = 0 THEN 1 ELSE 0 END INTO is_first_run
     FROM monitoring.known_tables;
 
     FOR schema_row IN (
@@ -32,7 +32,7 @@ BEGIN
         WHERE table_schema = schema_row.schema_name;
 
         -- If new tables exist or it's the first run, insert them
-        IF (current_count > known_count OR is_first_run) THEN
+        IF (current_count > known_count OR is_first_run = 1) THEN
             -- Insert new tables into known_tables
             INSERT INTO monitoring.known_tables (table_schema, table_name, created_at)
             SELECT t.table_schema, t.table_name, t.created
@@ -44,7 +44,7 @@ BEGIN
               AND k.table_name IS NULL;
 
             -- Only log alert if it's not the first run
-            IF is_first_run = FALSE THEN
+            IF is_first_run = 0 THEN
                 SELECT COALESCE(
                     LISTAGG(
                         '- ' || table_name || ' (Created: ' || TO_CHAR(created, 'YYYY-MM-DD HH24:MI:SS') || ')',
@@ -73,7 +73,7 @@ BEGIN
     END FOR;
 
     RETURN CASE 
-        WHEN is_first_run THEN 'Initial population of known_tables completed.'
+        WHEN is_first_run = 1 THEN 'Initial population of known_tables completed.'
         ELSE 'Schema scan completed for database: ' || CURRENT_DATABASE()
     END;
 END;
