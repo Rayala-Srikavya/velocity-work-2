@@ -8,6 +8,7 @@ DECLARE
     known_count INTEGER;
     new_table_details STRING;
     is_first_run INTEGER;
+    return_message STRING;
 BEGIN
     -- Check if known_tables is empty
     SELECT CASE WHEN COUNT(*) = 0 THEN 1 ELSE 0 END INTO is_first_run
@@ -72,9 +73,13 @@ BEGIN
         END IF;
     END FOR;
 
-    RETURN CASE 
-        WHEN is_first_run = 1 THEN 'Initial population of known_tables completed.'
-        ELSE 'Schema scan completed for database: ' || CURRENT_DATABASE()
-    END;
+    -- Set return message
+    IF is_first_run = 1 THEN
+        LET return_message = 'Initial population of known_tables completed.';
+    ELSE
+        LET return_message = 'Schema scan completed for database: ' || CURRENT_DATABASE();
+    END IF;
+
+    RETURN return_message;
 END;
 $$;
