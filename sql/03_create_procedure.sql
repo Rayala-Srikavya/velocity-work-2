@@ -48,10 +48,17 @@ BEGIN
     END IF;
 
     -- Step 4: Replace known_tables with current snapshot
-    DELETE FROM monitoring.known_tables;
+    TRUNCATE TABLE monitoring.known_tables;
 
     INSERT INTO monitoring.known_tables (table_schema, table_name, created_at)
     SELECT table_schema, table_name, created FROM temp_current_tables;
+
+    -- Optional logging
+    INSERT INTO monitoring.alert_log (event_time, message)
+    VALUES (
+        CURRENT_TIMESTAMP,
+        'known_tables refreshed with latest snapshot.'
+    );
 
     -- Cleanup
     DROP TABLE IF EXISTS temp_current_tables;
