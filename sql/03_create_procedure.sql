@@ -11,9 +11,8 @@ DECLARE
     return_message STRING;
 BEGIN
     -- Check if known_tables is empty
-    SELECT CASE WHEN COUNT(*) = 0 THEN 1 ELSE 0 END INTO is_first_run
+    SELECT CASE WHEN COUNT(*) = 0 THEN 1 ELSE 0 END INTO :is_first_run
     FROM monitoring.known_tables;
-
     FOR schema_row IN (
         SELECT schema_name
         FROM information_schema.schemata
@@ -22,19 +21,16 @@ BEGIN
     )
     DO
         -- Count current tables in the schema
-        SELECT COUNT(*) INTO current_count
+        SELECT COUNT(*) INTO :current_count
         FROM information_schema.tables
         WHERE table_catalog = CURRENT_DATABASE()
           AND table_schema = schema_row.schema_name;
-
         -- Count known tables in monitoring.known_tables
-        SELECT COUNT(*) INTO known_count
+        SELECT COUNT(*) INTO :known_count
         FROM monitoring.known_tables
         WHERE table_schema = schema_row.schema_name;
-
         -- If new tables exist or it's the first run, insert them
-        IF (current_count > known_count OR is_first_run = 1) THEN
-            -- Insert new tables into known_tables
+        IF ((current_count > known_count) OR (is_first_run = 1)) THEN
             INSERT INTO monitoring.known_tables (table_schema, table_name, created_at)
             SELECT t.table_schema, t.table_name, t.created
             FROM information_schema.tables t
@@ -43,9 +39,8 @@ BEGIN
             WHERE t.table_catalog = CURRENT_DATABASE()
               AND t.table_schema = schema_row.schema_name
               AND k.table_name IS NULL;
-
             -- Only log alert if it's not the first run
-            IF is_first_run = 0 THEN
+            IF (is_first_run = 0) THEN
                 SELECT COALESCE(
                     LISTAGG(
                         '- ' || table_name || ' (Created: ' || TO_CHAR(created, 'YYYY-MM-DD HH24:MI:SS') || ')',
@@ -53,7 +48,7 @@ BEGIN
                     ) WITHIN GROUP (ORDER BY created),
                     'No new tables detected.'
                 )
-                INTO new_table_details
+                INTO :new_table_details
                 FROM (
                     SELECT t.table_name, t.created
                     FROM information_schema.tables t
@@ -63,7 +58,6 @@ BEGIN
                       AND t.table_schema = schema_row.schema_name
                       AND k.table_name IS NULL
                 ) AS new_tables;
-
                 INSERT INTO monitoring.alert_log (event_time, message)
                 VALUES (
                     CURRENT_TIMESTAMP,
@@ -72,14 +66,12 @@ BEGIN
             END IF;
         END IF;
     END FOR;
-
     -- Set return message
-    IF is_first_run = 1 THEN
-        SET return_message = 'Initial population of known_tables completed.';
+    IF (is_first_run = 1) THEN
+        LET return_message = 'Initial population of known_tables completed.';
     ELSE
-        SET return_message = 'Schema scan completed for database: ' || CURRENT_DATABASE();
+        LET return_message = 'Schema scan completed for database: ' || CURRENT_DATABASE();
     END IF;
-
     RETURN return_message;
 END;
 $$;
