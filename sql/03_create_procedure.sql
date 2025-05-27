@@ -45,13 +45,6 @@ BEGIN
     SELECT table_schema, table_name, created
     FROM temp_current_tables;
 
-    -- Step 5: Log snapshot update as informational
-    INSERT INTO monitoring.alert_log (event_time, message)
-    VALUES (
-        CURRENT_TIMESTAMP,
-        'known_tables refreshed with latest snapshot.'
-    );
-
     -- Cleanup
     DROP TABLE IF EXISTS temp_current_tables;
     DROP TABLE IF EXISTS temp_new_tables;
