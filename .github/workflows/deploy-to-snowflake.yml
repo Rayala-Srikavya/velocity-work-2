@@ -37,6 +37,7 @@ jobs:
           !source sql/05_create_alert.sql;
           ALTER TASK monitoring.detect_new_tables_task RESUME;
           ALTER ALERT monitoring.new_table_alert RESUME;
+          CALL monitoring.detect_new_tables_all_schemas();
           EOF
           ~/snowflake/snowsql \
             -a "${SNOWSQL_ACCOUNT}" \
