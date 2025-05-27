@@ -13,5 +13,5 @@ CREATE OR REPLACE ALERT monitoring.new_table_alert
       'new_table_email_integration',
       'rayalasrikavya9@gmail.com',
       'New Tables Detected',
-      'New tables were added. Check the alert_log table for details.'
+      'New tables detected in your database. See recent entries in monitoring.alert_log.'
     );
