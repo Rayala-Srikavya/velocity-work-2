@@ -7,7 +7,6 @@ DECLARE
     current_count INTEGER;
     known_count INTEGER;
     new_table_details STRING;
-    new_table_count INTEGER;
 BEGIN
     FOR schema_row IN (
         SELECT schema_name
@@ -16,10 +15,6 @@ BEGIN
           AND schema_name NOT IN ('INFORMATION_SCHEMA', 'MONITORING')
     )
     DO
-        -- Log schema being scanned
-        INSERT INTO monitoring.alert_log (event_time, message)
-        VALUES (CURRENT_TIMESTAMP, 'Scanning schema: ' || schema_row.schema_name);
-
         -- Count current tables in the schema
         SELECT COUNT(*) INTO current_count
         FROM information_schema.tables
@@ -35,47 +30,35 @@ BEGIN
         IF (current_count > known_count) THEN
             -- Insert new tables into known_tables
             INSERT INTO monitoring.known_tables (table_schema, table_name, created_at)
-            SELECT t.table_schema, t.table_name, CURRENT_TIMESTAMP
+            SELECT t.table_schema, t.table_name, t.created
             FROM information_schema.tables t
             LEFT JOIN monitoring.known_tables k
-              ON LOWER(t.table_schema) = LOWER(k.table_schema)
-             AND LOWER(t.table_name) = LOWER(k.table_name)
+              ON t.table_schema = k.table_schema AND t.table_name = k.table_name
             WHERE t.table_catalog = CURRENT_DATABASE()
               AND t.table_schema = schema_row.schema_name
               AND k.table_name IS NULL;
 
-            -- Count new tables
-            SELECT COUNT(*) INTO new_table_count
-            FROM information_schema.tables t
-            LEFT JOIN monitoring.known_tables k
-              ON LOWER(t.table_schema) = LOWER(k.table_schema)
-             AND LOWER(t.table_name) = LOWER(k.table_name)
-            WHERE t.table_catalog = CURRENT_DATABASE()
-              AND t.table_schema = schema_row.schema_name
-              AND k.table_name IS NULL;
-
-            -- Aggregate new table details
-            SELECT COALESCE(details, 'No new tables detected.')
+            -- Aggregate new table details for alert message
+            SELECT COALESCE(
+                LISTAGG('- ' || table_name || ' (Created: ' || TO_CHAR(created, 'YYYY-MM-DD HH24:MI:SS') || ')', '\n'),
+                'No new tables detected.'
+            )
             INTO new_table_details
             FROM (
-                SELECT LISTAGG('- ' || t.table_name || ' (Detected: ' || TO_CHAR(CURRENT_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS') || ')', '\n') AS details
-                FROM (
-                    SELECT t.table_name
-                    FROM information_schema.tables t
-                    LEFT JOIN monitoring.known_tables k
-                      ON LOWER(t.table_schema) = LOWER(k.table_schema)
-                     AND LOWER(t.table_name) = LOWER(k.table_name)
-                    WHERE t.table_catalog = CURRENT_DATABASE()
-                      AND t.table_schema = schema_row.schema_name
-                      AND k.table_name IS NULL
-                )
-            ) AS aggregated;
+                SELECT t.table_name, t.createdsql/05_create_alert.sql
+                FROM information_schema.tables t
+                LEFT JOIN monitoring.known_tables k
+                  ON t.table_schema = k.table_schema AND t.table_name = k.table_name
+                WHERE t.table_catalog = CURRENT_DATABASE()
+                  AND t.table_schema = schema_row.schema_name
+                  AND k.table_name IS NULL
+            );
 
-            -- Log the alert message
+            -- Insert alert log entry
             INSERT INTO monitoring.alert_log (event_time, message)
             VALUES (
                 CURRENT_TIMESTAMP,
-                'New tables detected in schema: ' || schema_row.schema_name || ' (' || new_table_count || '):\n' || new_table_details
+                'New tables detected in schema: ' || schema_row.schema_name || ':\n' || new_table_details
             );
         END IF;
     END FOR;
