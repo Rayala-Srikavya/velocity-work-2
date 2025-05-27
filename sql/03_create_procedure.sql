@@ -10,9 +10,17 @@ DECLARE
     is_first_run INTEGER;
     return_message STRING;
 BEGIN
+    -- Debug log
+    INSERT INTO monitoring.alert_log (event_time, message)
+    VALUES (CURRENT_TIMESTAMP, 'Checking if known_tables is empty');
+
     -- Check if known_tables is empty
     SELECT CASE WHEN COUNT(*) = 0 THEN 1 ELSE 0 END INTO is_first_run
     FROM monitoring.known_tables;
+
+    -- Debug log
+    INSERT INTO monitoring.alert_log (event_time, message)
+    VALUES (CURRENT_TIMESTAMP, 'is_first_run = ' || is_first_run);
 
     FOR schema_row IN (
         SELECT schema_name
@@ -21,20 +29,25 @@ BEGIN
           AND schema_name NOT IN ('INFORMATION_SCHEMA', 'MONITORING')
     )
     DO
-        -- Count current tables in the schema
+        -- Count current tables
         SELECT COUNT(*) INTO current_count
         FROM information_schema.tables
         WHERE table_catalog = CURRENT_DATABASE()
           AND table_schema = schema_row.schema_name;
 
-        -- Count known tables in monitoring.known_tables
+        -- Count known tables
         SELECT COUNT(*) INTO known_count
         FROM monitoring.known_tables
         WHERE table_schema = schema_row.schema_name;
 
-        -- Insert new tables if any or if first run
+        -- Debug log
+        INSERT INTO monitoring.alert_log (event_time, message)
+        VALUES (
+            CURRENT_TIMESTAMP,
+            'Schema: ' || schema_row.schema_name || ', current_count: ' || current_count || ', known_count: ' || known_count
+        );
+
         IF (current_count > known_count OR is_first_run = 1) THEN
-            -- Insert new tables
             INSERT INTO monitoring.known_tables (table_schema, table_name, created_at)
             SELECT t.table_schema, t.table_name, t.created
             FROM information_schema.tables t
@@ -44,9 +57,7 @@ BEGIN
               AND t.table_schema = schema_row.schema_name
               AND k.table_name IS NULL;
 
-            -- Only log alert if it's not the first run
             IF (is_first_run = 0) THEN
-                -- Aggregate new table details safely
                 WITH new_tables AS (
                     SELECT t.table_name, t.created
                     FROM information_schema.tables t
@@ -75,7 +86,6 @@ BEGIN
         END IF;
     END FOR;
 
-    -- Set return message
     IF (is_first_run = 1) THEN
         return_message := 'Initial population of known_tables completed.';
     ELSE
