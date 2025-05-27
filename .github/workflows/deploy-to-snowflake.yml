@@ -29,22 +29,18 @@ jobs:
           SNOWSQL_DATABASE: ${{ secrets.SNOWSQL_DATABASE }}
         run: |
           cat <<EOF > deploy.sql
-          USE ROLE ACCOUNT_ADMIN;
-          USE WAREHOUSE COMPUTE_WH;
           USE DATABASE ${SNOWSQL_DATABASE};
-
           !source sql/01_create_known_tables.sql;
           !source sql/02_create_alert_log.sql;
           !source sql/03_create_procedure.sql;
           !source sql/04_create_task.sql;
-          ALTER TASK monitoring.detect_new_tables_task RESUME;
           !source sql/05_create_alert.sql;
+          ALTER TASK monitoring.detect_new_tables_task RESUME;
           ALTER ALERT monitoring.new_table_alert RESUME;
           EOF
-
           ~/snowflake/snowsql \
             -a "${SNOWSQL_ACCOUNT}" \
             -u "${SNOWSQL_USER}" \
             -d "${SNOWSQL_DATABASE}" \
             -w COMPUTE_WH \
-            -f deploy.sql
+            -f deploy.sql 
