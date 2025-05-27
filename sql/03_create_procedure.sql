@@ -25,7 +25,7 @@ BEGIN
     -- Step 3: Count and log new tables
     SELECT COUNT(*) INTO new_table_count FROM temp_new_tables;
 
-    IF new_table_count > 0 THEN
+    IF (new_table_count > 0) THEN
         -- Insert each new table into alert_log with structured fields
         INSERT INTO monitoring.alert_log (event_time, schema_name, table_name, created_at, message)
         SELECT
