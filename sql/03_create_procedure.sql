@@ -4,8 +4,8 @@ LANGUAGE SQL
 AS
 $$
 DECLARE
-    new_table_count INTEGER DEFAULT 0;
-    return_message STRING DEFAULT '';
+    new_table_count INTEGER;
+    return_message STRING;
 BEGIN
     -- Step 1: Capture current state of all user-created tables
     CREATE OR REPLACE TEMP TABLE temp_current_tables AS
