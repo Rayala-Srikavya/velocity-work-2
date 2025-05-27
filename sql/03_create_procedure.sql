@@ -45,7 +45,7 @@ BEGIN
             )
             INTO new_table_details
             FROM (
-                SELECT t.table_name, t.createdsql/05_create_alert.sql
+                SELECT t.table_name, t.created
                 FROM information_schema.tables t
                 LEFT JOIN monitoring.known_tables k
                   ON t.table_schema = k.table_schema AND t.table_name = k.table_name
