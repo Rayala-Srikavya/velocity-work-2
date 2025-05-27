@@ -44,7 +44,7 @@ BEGIN
               AND k.table_name IS NULL;
 
             -- Only log alert if it's not the first run
-            IF NOT is_first_run THEN
+            IF is_first_run = FALSE THEN
                 SELECT COALESCE(
                     LISTAGG(
                         '- ' || table_name || ' (Created: ' || TO_CHAR(created, 'YYYY-MM-DD HH24:MI:SS') || ')',
