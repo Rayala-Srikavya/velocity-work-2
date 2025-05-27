@@ -6,6 +6,7 @@ $$
 DECLARE
     new_table_details STRING;
     return_message STRING;
+    new_table_count INTEGER;
 BEGIN
     -- Step 1: Create a snapshot of current tables
     CREATE OR REPLACE TEMP TABLE temp_current_tables AS
@@ -22,8 +23,11 @@ BEGIN
       ON c.table_schema = k.table_schema AND c.table_name = k.table_name
     WHERE k.table_name IS NULL;
 
-    -- Step 3: Log and alert for new tables
-    IF EXISTS (SELECT 1 FROM temp_new_tables) THEN
+    -- Step 3: Check if there are new tables
+    SELECT COUNT(*) INTO new_table_count FROM temp_new_tables;
+
+    IF new_table_count > 0 THEN
+        -- Format and log new table details
         SELECT COALESCE(
             TRY(
                 LISTAGG(
@@ -41,9 +45,6 @@ BEGIN
             CURRENT_TIMESTAMP,
             'New tables detected:\n' || new_table_details
         );
-
-        -- Optional: Trigger alert email (if using Snowflake alert integration)
-        -- This is handled by your alert definition in sql/05_create_alert.sql
     END IF;
 
     -- Step 4: Replace known_tables with current snapshot
