@@ -1,4 +1,4 @@
-name: Deploy Snowflake Monitoring
+name: Detecting and logging new tables in Velocity
 
 on:
   push:
@@ -26,32 +26,36 @@ jobs:
           SNOWSQL_ACCOUNT: ${{ secrets.SNOWSQL_ACCOUNT }}
           SNOWSQL_USER: ${{ secrets.SNOWSQL_USER }}
           SNOWSQL_PWD: ${{ secrets.SNOWSQL_PWD }}
-          SNOWSQL_DATABASE: CONFIG_CLOUD_VELOCITY
+          SNOWSQL_DATABASE: ${{ secrets.SNOWSQL_DATABASE }}
         run: |
           cat <<EOF > deploy.sql
           USE ROLE DATA_ENGINEERING;
-          USE DATABASE CONFIG_CLOUD_VELOCITY;
+          USE DATABASE ${SNOWSQL_DATABASE};
           USE SCHEMA CONFIG;
 
+          --Step 1: Grant Privileges
           GRANT USAGE ON SCHEMA CONFIG TO ROLE DATA_ENGINEERING;
           GRANT INSERT ON TABLE CONFIG.alert_log TO ROLE DATA_ENGINEERING;
 
+          --Step 2: Run setup scripts
           !source sql/01_create_known_tables.sql;
           !source sql/02_create_alert_log.sql;
           !source sql/03_create_procedure.sql;
           !source sql/04_create_task.sql;
           !source sql/05_create_alert.sql;
 
+          --Step 3: Resume Task and Alert
           ALTER TASK CONFIG.detect_new_tables_task RESUME;
           ALTER ALERT CONFIG.new_table_alert RESUME;
 
-          CALL CONFIG.detect_new_tables_all_schemas();
+          --Step 4: Trigger procedure manually
+          CALL CONFIG.velocity_detect_new_tables_all_schemas();
           EOF
 
           ~/snowflake/snowsql \
             -a "${SNOWSQL_ACCOUNT}" \
             -u "${SNOWSQL_USER}" \
-            -d CONFIG_CLOUD_VELOCITY \
+            -d "${SNOWSQL_DATABASE}" \
             -r DATA_ENGINEERING \
             -w BUSINESS_ANALYTICS_WH \
             -f deploy.sql
