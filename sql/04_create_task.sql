@@ -1,5 +1,5 @@
-CREATE OR REPLACE TASK config.detect_new_tables_task
-  WAREHOUSE = COMPUTE_WH
-  SCHEDULE = 'USING CRON 30 7 * * * UTC'  -- Runs daily at 1:30 PM IST
+CREATE OR REPLACE TASK CONFIG.detect_new_tables_task
+  WAREHOUSE = BUSINESS_ANALYTICS_WH
+  SCHEDULE = 'USING CRON 30 7 * * * UTC'
 AS
-  CALL config.velocity_detect_new_tables_all_schemas();
+  CALL CONFIG.detect_new_tables_all_schemas();
