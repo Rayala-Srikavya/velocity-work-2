@@ -31,18 +31,30 @@ jobs:
           cat <<EOF > deploy.sql
           USE DATABASE ${SNOWSQL_DATABASE};
           USE ROLE ACCOUNTADMIN;
+
+          -- Step 1: Grant privileges
+          GRANT USAGE ON SCHEMA monitoring TO ROLE SYSADMIN;
+          GRANT INSERT ON TABLE monitoring.alert_log TO ROLE ACCOUNTADMIN;
+
+          --Step 2: Run setup scripts
           !source sql/01_create_known_tables.sql;
           !source sql/02_create_alert_log.sql;
           !source sql/03_create_procedure.sql;
           !source sql/04_create_task.sql;
           !source sql/05_create_alert.sql;
+
+          --Step 3: Resume Task and Alert
           ALTER TASK monitoring.detect_new_tables_task RESUME;
           ALTER ALERT monitoring.new_table_alert RESUME;
+
+          -STep 4: Trigger procedure manually
           CALL monitoring.detect_new_tables_all_schemas();
           EOF
+          
           ~/snowflake/snowsql \
             -a "${SNOWSQL_ACCOUNT}" \
             -u "${SNOWSQL_USER}" \
             -d "${SNOWSQL_DATABASE}" \
+            -r ACCOUNTADMIN \
             -w COMPUTE_WH \
             -f deploy.sql 
