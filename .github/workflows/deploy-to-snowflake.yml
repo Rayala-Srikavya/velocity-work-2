@@ -30,6 +30,7 @@ jobs:
         run: |
           cat <<EOF > deploy.sql
           USE DATABASE ${SNOWSQL_DATABASE};
+          USE ROLE ACCOUNTADMIN;
           !source sql/01_create_known_tables.sql;
           !source sql/02_create_alert_log.sql;
           !source sql/03_create_procedure.sql;
