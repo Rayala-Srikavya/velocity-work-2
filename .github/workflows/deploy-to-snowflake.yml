@@ -1,4 +1,4 @@
-name: Deploy Snowflake Monitoring
+name: Deploy Snowflake Monitoring for Velocity
 
 on:
   push:
@@ -33,8 +33,8 @@ jobs:
           USE ROLE ACCOUNTADMIN;
 
           -- Step 1: Grant privileges
-          GRANT USAGE ON SCHEMA monitoring TO ROLE SYSADMIN;
-          GRANT INSERT ON TABLE monitoring.alert_log TO ROLE ACCOUNTADMIN;
+          GRANT USAGE ON SCHEMA config TO ROLE ACCOUNTADMIN;
+          GRANT INSERT ON TABLE config.alert_log TO ROLE ACCOUNTADMIN;
 
           --Step 2: Run setup scripts
           !source sql/01_create_known_tables.sql;
@@ -48,7 +48,7 @@ jobs:
           ALTER ALERT monitoring.new_table_alert RESUME;
 
           --Step 4: Trigger procedure manually
-          CALL monitoring.detect_new_tables_all_schemas();
+          CALL config.velocity_detect_new_tables_all_schemas();
           EOF
           
           ~/snowflake/snowsql \
