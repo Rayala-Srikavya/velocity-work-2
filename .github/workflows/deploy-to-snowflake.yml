@@ -47,7 +47,7 @@ jobs:
           ALTER TASK monitoring.detect_new_tables_task RESUME;
           ALTER ALERT monitoring.new_table_alert RESUME;
 
-          -STep 4: Trigger procedure manually
+          --Step 4: Trigger procedure manually
           CALL monitoring.detect_new_tables_all_schemas();
           EOF
           
