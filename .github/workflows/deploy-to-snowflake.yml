@@ -1,4 +1,4 @@
-name: Deploy Snowflake Monitoring for Velocity
+name: Deploy Snowflake Monitoring
 
 on:
   push:
@@ -26,35 +26,32 @@ jobs:
           SNOWSQL_ACCOUNT: ${{ secrets.SNOWSQL_ACCOUNT }}
           SNOWSQL_USER: ${{ secrets.SNOWSQL_USER }}
           SNOWSQL_PWD: ${{ secrets.SNOWSQL_PWD }}
-          SNOWSQL_DATABASE: ${{ secrets.SNOWSQL_DATABASE }}
+          SNOWSQL_DATABASE: CONFIG_CLOUD_VELOCITY
         run: |
           cat <<EOF > deploy.sql
-          USE DATABASE ${SNOWSQL_DATABASE};
-          USE ROLE ACCOUNTADMIN;
+          USE ROLE DATA_ENGINEERING;
+          USE DATABASE CONFIG_CLOUD_VELOCITY;
+          USE SCHEMA CONFIG;
 
-          -- Step 1: Grant privileges
-          GRANT USAGE ON SCHEMA config TO ROLE ACCOUNTADMIN;
-          GRANT INSERT ON TABLE config.alert_log TO ROLE ACCOUNTADMIN;
+          GRANT USAGE ON SCHEMA CONFIG TO ROLE DATA_ENGINEERING;
+          GRANT INSERT ON TABLE CONFIG.alert_log TO ROLE DATA_ENGINEERING;
 
-          --Step 2: Run setup scripts
           !source sql/01_create_known_tables.sql;
           !source sql/02_create_alert_log.sql;
           !source sql/03_create_procedure.sql;
           !source sql/04_create_task.sql;
           !source sql/05_create_alert.sql;
 
-          --Step 3: Resume Task and Alert
-          ALTER TASK monitoring.detect_new_tables_task RESUME;
-          ALTER ALERT monitoring.new_table_alert RESUME;
+          ALTER TASK CONFIG.detect_new_tables_task RESUME;
+          ALTER ALERT CONFIG.new_table_alert RESUME;
 
-          --Step 4: Trigger procedure manually
-          CALL config.velocity_detect_new_tables_all_schemas();
+          CALL CONFIG.detect_new_tables_all_schemas();
           EOF
-          
+
           ~/snowflake/snowsql \
             -a "${SNOWSQL_ACCOUNT}" \
             -u "${SNOWSQL_USER}" \
-            -d "${SNOWSQL_DATABASE}" \
-            -r ACCOUNTADMIN \
-            -w COMPUTE_WH \
-            -f deploy.sql 
+            -d CONFIG_CLOUD_VELOCITY \
+            -r DATA_ENGINEERING \
+            -w BUSINESS_ANALYTICS_WH \
+            -f deploy.sql
