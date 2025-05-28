@@ -29,7 +29,7 @@ jobs:
           SNOWSQL_DATABASE: ${{ secrets.SNOWSQL_DATABASE }}
         run: |
           cat <<EOF > deploy.sql
-          USE ROLE DATA_ENGINEERING;
+          USE ROLE ACCOUNTADMIN;
           USE DATABASE ${SNOWSQL_DATABASE};
           USE SCHEMA CONFIG;
 
@@ -53,6 +53,6 @@ jobs:
             -a "${SNOWSQL_ACCOUNT}" \
             -u "${SNOWSQL_USER}" \
             -d "${SNOWSQL_DATABASE}" \
-            -r DATA_ENGINEERING \
+            -r ACCOUNTADMIN \
             -w BUSINESS_ANALYTICS_WH \
             -f deploy.sql
