@@ -1,4 +1,4 @@
-name: Deploy Snowflake Monitoring
+name: Deploy Snowflake Monitoring for Velocity
 
 on:
   push:
@@ -26,11 +26,11 @@ jobs:
           SNOWSQL_ACCOUNT: ${{ secrets.SNOWSQL_ACCOUNT }}
           SNOWSQL_USER: ${{ secrets.SNOWSQL_USER }}
           SNOWSQL_PWD: ${{ secrets.SNOWSQL_PWD }}
-          SNOWSQL_DATABASE: CONFIG_CLOUD_VELOCITY
+          SNOWSQL_DATABASE: ${{ secrets.SNOWSQL_DATABASE }}
         run: |
           cat <<EOF > deploy.sql
           USE ROLE DATA_ENGINEERING;
-          USE DATABASE CONFIG_CLOUD_VELOCITY;
+          USE DATABASE $;
           USE SCHEMA CONFIG;
 
           GRANT USAGE ON SCHEMA CONFIG TO ROLE DATA_ENGINEERING;
