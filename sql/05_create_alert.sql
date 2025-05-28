@@ -1,10 +1,10 @@
-CREATE OR REPLACE ALERT config.new_table_alert
-  WAREHOUSE = COMPTE_WH
+CREATE OR REPLACE ALERT CONFIG.new_table_alert
+  WAREHOUSE = BUSINESS_ANALYTICS_WH
   SCHEDULE = '1 MINUTE'
   IF (
     EXISTS (
       SELECT 1
-      FROM config.alert_log
+      FROM CONFIG.alert_log
       WHERE event_time > DATEADD(MINUTE, -2, CURRENT_TIMESTAMP)
     )
   )
@@ -13,5 +13,5 @@ CREATE OR REPLACE ALERT config.new_table_alert
       'new_table_email_integration',
       'rayalasrikavya9@gmail.com',
       'New Tables Detected',
-      'New tables detected in your database. See recent entries in config.alert_log.'
+      'New tables detected in CONFIG_CLOUD_VELOCITY. See CONFIG.alert_log.'
     );
