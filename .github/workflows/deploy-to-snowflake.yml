@@ -30,7 +30,7 @@ jobs:
         run: |
           cat <<EOF > deploy.sql
           USE ROLE DATA_ENGINEERING;
-          USE DATABASE $;
+          USE DATABASE ${SNOWSQL_DATABASE};
           USE SCHEMA CONFIG;
 
           GRANT USAGE ON SCHEMA CONFIG TO ROLE DATA_ENGINEERING;
