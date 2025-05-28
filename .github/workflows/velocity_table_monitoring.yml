@@ -34,18 +34,18 @@ jobs:
           USE SCHEMA CONFIG;
 
 
-          --Step 2: Run setup scripts
+          --Step 1: Run setup scripts
           !source sql/01_create_known_tables.sql;
           !source sql/02_create_alert_log.sql;
           !source sql/03_create_procedure.sql;
           !source sql/04_create_task.sql;
           !source sql/05_create_alert.sql;
 
-          --Step 3: Resume Task and Alert
+          --Step 2: Resume Task and Alert
           ALTER TASK CONFIG.detect_new_tables_velocity_task RESUME;
           ALTER ALERT CONFIG.new_table_velocity_alert RESUME;
 
-          --Step 4: Trigger procedure manually
+          --Step 3: Trigger procedure manually
           CALL CONFIG.velocity_detect_new_tables_all_schemas();
           EOF
 
