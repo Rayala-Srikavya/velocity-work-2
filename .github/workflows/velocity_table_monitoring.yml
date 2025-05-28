@@ -42,8 +42,8 @@ jobs:
           !source sql/05_create_alert.sql;
 
           --Step 3: Resume Task and Alert
-          ALTER TASK CONFIG.detect_new_tables_task RESUME;
-          ALTER ALERT CONFIG.new_table_alert RESUME;
+          ALTER TASK CONFIG.detect_new_tables_velocity_task RESUME;
+          ALTER ALERT CONFIG.new_table_velocity_alert RESUME;
 
           --Step 4: Trigger procedure manually
           CALL CONFIG.velocity_detect_new_tables_all_schemas();
