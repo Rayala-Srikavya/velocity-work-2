@@ -33,9 +33,6 @@ jobs:
           USE DATABASE ${SNOWSQL_DATABASE};
           USE SCHEMA CONFIG;
 
-          --Step 1: Grant Privileges
-          GRANT USAGE ON SCHEMA CONFIG TO ROLE DATA_ENGINEERING;
-          GRANT INSERT ON TABLE CONFIG.alert_log TO ROLE DATA_ENGINEERING;
 
           --Step 2: Run setup scripts
           !source sql/01_create_known_tables.sql;
