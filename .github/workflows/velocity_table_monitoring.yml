@@ -9,10 +9,25 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
+    env:  
+      SNOWSQL_ACCOUNT: "JSRPZNS-DEVELOPMENT_ENVIRONMENT"
+      SNOWSQL_USER: "ADV_SERVICE_USER"
+      SNOWSQL_ROLE: "ACCOUNTADMIN"
+      SNOWSQL_DATABASE: "CONFIG_CLOUD_VELOCITY"
+      SNOWSQL_CUST_SCHEMA: "CONFIG"
+      SNOWSQL_MAIN_LOCATOR: ${{ vars.MAIN_LOCATOR }
+      OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_CLD }}
+      SNOWSQL_PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWSQL_PRIVATE_KEY_PASSPHRASE }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Load 1password service
+        uses: 1password/load-secrets-action@v2
+        with:
+          unset-previous: true
+          
       - name: Install SnowSQL
         run: |
           sudo apt-get update && sudo apt-get install -y curl gzip
@@ -21,18 +36,35 @@ jobs:
           echo 'export PATH=~/snowflake/snowsql:$PATH' >> ~/.bashrc
           source ~/.bashrc
 
+      - name: Fetch Snowflake Private Key and Passphrase from 1Password
+        run: |
+          echo "Fetching credentials from 1Password..."
+
+          base="op://Snowflake_Sub_accounts/"
+          field="/private_key_phrase"
+          op_value="${base}${SNOWSQL_USER}${field}"
+          MAIN_PASSPHRASE=$(echo "${op_value}" | op inject)
+          echo "SNOWSQL_PRIVATE_KEY_PASSPHRASE=$MAIN_PASSPHRASE" >> $GITHUB_ENV
+
+          # Clean up old key file
+          if [ -f "$GITHUB_WORKSPACE/main_private_key" ]; then
+            rm $GITHUB_WORKSPACE/main_private_key
+          fi
+
+          # Fetch and write private key
+          field="/private_key"
+          op_value="${base}${SNOWSQL_USER}${field}"
+          ADV_RSA_PRIVATE_KEY=$(echo "${op_value}" | op inject)
+          main_escaped_private_key=$(echo "${ADV_RSA_PRIVATE_KEY}" | awk '{printf "%s\\n", $0}')
+          echo -e "$main_escaped_private_key" > $GITHUB_WORKSPACE/main_private_key
+          chmod 600 $GITHUB_WORKSPACE/main_private_key
+
       - name: Run SnowSQL Scripts
-        env:
-          SNOWSQL_ACCOUNT: ${{ secrets.SNOWSQL_ACCOUNT }}
-          SNOWSQL_USER: ${{ secrets.SNOWSQL_USER }}
-          SNOWSQL_PWD: ${{ secrets.SNOWSQL_PWD }}
-          SNOWSQL_DATABASE: ${{ secrets.SNOWSQL_DATABASE }}
         run: |
           cat <<EOF > deploy.sql
-          USE ROLE ACCOUNTADMIN;
-          USE DATABASE ${SNOWSQL_DATABASE};
+          USE ROLE ${SNOWSQL_ROLE};
+          USE DATABASE ${SNOWSQL_CUST_SCHEMA};
           USE SCHEMA CONFIG;
-
 
           --Step 1: Run setup scripts
           !source sql/01_create_known_tables.sql;
@@ -52,7 +84,10 @@ jobs:
           ~/snowflake/snowsql \
             -a "${SNOWSQL_ACCOUNT}" \
             -u "${SNOWSQL_USER}" \
-            -d "${SNOWSQL_DATABASE}" \
-            -r ACCOUNTADMIN \
-            -w BUSINESS_ANALYTICS_WH \
+            --private-key-path "$GITHUB_WORKSPACE/main_private_key" \
+            --private-key-passphrase "${SNOWSQL_PRIVATE_KEY_PASSPHRASE}" \
+            -d "${SNOWSQL_CUST_SCHEMA}" \
+            -r "${SNOWSQL_ROLE}" \
+            -w "${SNOWSQL_WAREHOUSE}" \
             -f deploy.sql
+
